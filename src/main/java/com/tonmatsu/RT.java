@@ -265,16 +265,28 @@ public class RT {
             // cast shadow ray
             shadowRay.origin.set(hit.position);
             shadowRay.origin.fma(-1e-3f, ray.direction);
-            shadowRay.intensity = ray.intensity * 0.7f;
+            shadowRay.intensity = ray.intensity;
             shadowRay.color.set(hit.primitive.getColor()).mul(shadowRay.intensity);
 
             shadowRay.direction.set(light.center).sub(hit.position).normalize();
             final var shadowRayHit = castRay(shadowRay, primitives);
             color.fma(0.1f, shadowRay.color);
             if (shadowRayHit.primitive == light) {
-                final var attenuation = 1.0f + 0.09f * shadowRayHit.time + 0.032f * shadowRayHit.time * shadowRayHit.time;
-                temp.set(shadowRay.color).mul(light.getColor());
-                color.fma(Math.min(8.0f / attenuation, 1.0f), temp);
+                final var attenuation = 1.0f / (1.0f + 0.09f * shadowRayHit.time + 0.032f * shadowRayHit.time * shadowRayHit.time);
+                final var lambertian = Math.max(shadowRay.direction.dot(hit.normal), 0);
+                if (lambertian > 0) {
+                    temp.set(shadowRay.color).mul(light.getColor());
+                    color.fma(Math.min(4 * lambertian * attenuation, 1.0f), temp);
+
+                    temp.set(ray.origin).sub(hit.position).add(light.center).sub(hit.position).normalize();
+                    final var specAngle = Math.max(temp.dot(hit.normal), 0);
+                    if (specAngle > 0) {
+                        temp.set(shadowRay.color).mul(light.getColor());
+                        color.fma(Math.min(4 * attenuation * (float) java.lang.Math.pow(specAngle, 256.0), 1.0f), temp);
+                    }
+                }
+//                temp.set(shadowRay.color).mul(light.getColor());
+//                color.fma(Math.min(attenuation, 1.0f), temp);
             }
 
             if (reflections > 0) {
