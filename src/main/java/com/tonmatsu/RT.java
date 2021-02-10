@@ -38,6 +38,7 @@ public class RT {
     private Hit hit;
     private Hit hit2;
     private Hit hit3;
+    private Hit hit4;
     private float time;
 
     public void create(long window) {
@@ -77,6 +78,7 @@ public class RT {
         hit = new Hit();
         hit2 = new Hit();
         hit3 = new Hit();
+        hit4 = new Hit();
 
         time = 0.0f;
     }
@@ -130,89 +132,11 @@ public class RT {
                 ray.direction.mulDirection(view);
                 ray.direction.normalize();
 
-                final var primitive = getNearestHit(ray);
-                hit.set(hit2);
-                if (primitive != null) {
-                    // SHADOW RAY
-                    var shadowRayR = hit.color.x * light.color.x;
-                    var shadowRayG = hit.color.y * light.color.y;
-                    var shadowRayB = hit.color.z * light.color.z;
-                    var shadowRayContrib = 0.1f;
-                    {
-                        shadowRay.origin.set(hit.position);
-                        shadowRay.origin.fma(-1e-3f, ray.direction);
-                        shadowRay.direction.set(light.center).sub(shadowRay.origin).normalize();
-                        final var primitive2 = getNearestHit(shadowRay);
-                        if (light == primitive2)
-                            shadowRayContrib += Math.min(10.0f / hit2.time, 1.0f);
-                    }
-                    // REFLECTION RAY
-                    if (true) {
-                        reflectionRay.origin.set(hit.position);
-                        reflectionRay.origin.fma(-1e-3f, ray.direction);
-                        reflectionRay.direction.set(ray.direction).reflect(hit.normal).normalize();
-                        final var primitive2 = getNearestHit(reflectionRay);
-                        if (primitive2 != null) {
-                            hit.set(hit2);
-                            // SHADOW RAY 2
-                            var shadowRay2R = hit.color.x * light.color.x;
-                            var shadowRay2G = hit.color.y * light.color.y;
-                            var shadowRay2B = hit.color.z * light.color.z;
-                            var shadowRay2Contrib = 0.1f;
-                            {
-                                shadowRay.origin.set(hit.position);
-                                shadowRay.origin.fma(-1e-3f, ray.direction);
-                                shadowRay.direction.set(light.center).sub(shadowRay.origin).normalize();
-                                final var primitive3 = getNearestHit(shadowRay);
-                                hit.set(hit2);
-                                if (light == primitive3)
-                                    shadowRay2Contrib += Math.min(10.0f / hit2.time, 0.5f);
-                            }
-                            shadowRayR += shadowRay2R * shadowRay2Contrib;
-                            shadowRayG += shadowRay2G * shadowRay2Contrib;
-                            shadowRayB += shadowRay2B * shadowRay2Contrib;
-                        }
-                    }
-                    // REFRACTION RAY
-                    if (false) {
-                        refractionRay.origin.set(hit.position);
-                        refractionRay.origin.fma(1e-3f, ray.direction);
-                        refractionRay.direction.set(ray.direction).reflect(hit.normal).mul(-1).normalize();
-                        final var primitive2 = getNearestHit(refractionRay);
-                        if (primitive2 != null) {
-                            hit.set(hit2);
-                            // SHADOW RAY 2
-                            var shadowRay3R = hit.color.x * light.color.x;
-                            var shadowRay3G = hit.color.y * light.color.y;
-                            var shadowRay3B = hit.color.z * light.color.z;
-                            var shadowRay3Contrib = 0.1f;
-                            {
-                                shadowRay.origin.set(hit.position);
-                                shadowRay.origin.fma(1e-3f, ray.direction);
-                                shadowRay.direction.set(light.center).sub(shadowRay.origin).normalize();
-                                final var primitive3 = getNearestHit(shadowRay);
-                                hit.set(hit2);
-                                if (light == primitive3)
-                                    shadowRay3Contrib += Math.min(10.0f / hit2.time, 0.5f);
-                            }
-                            shadowRayR += shadowRay3R * shadowRay3Contrib;
-                            shadowRayG += shadowRay3G * shadowRay3Contrib;
-                            shadowRayB += shadowRay3B * shadowRay3Contrib;
-                        }
-                    }
-                    var r = shadowRayR * shadowRayContrib;
-                    var g = shadowRayG * shadowRayContrib;
-                    var b = shadowRayB * shadowRayContrib;
-                    pixels.put(r);
-                    pixels.put(g);
-                    pixels.put(b);
-                    pixels.put(1);
-                } else {
-                    pixels.put(0);
-                    pixels.put(0);
-                    pixels.put(0);
-                    pixels.put(0);
-                }
+                final var color = castRay(ray, primitives, light, 4);
+                pixels.put(color.x);
+                pixels.put(color.y);
+                pixels.put(color.z);
+                pixels.put(1);
             }
         }
 
@@ -346,7 +270,50 @@ public class RT {
         return primitive;
     }
 
-    private void castRay(Ray ray) {
+    private Vector3f castRay(Ray ray, List<Primitive> primitives, Light light, int reflections) {
+        ray.intensity = 1.0f;
+        final var color = new Vector3f();
+        final var shadowRay = new Ray();
+        final var reflectionRay = new Ray();
+        while (true) {
+            final var primitive = getNearestHit(ray);
+            if (primitive == null)
+                return color;
+            hit.set(hit2);
 
+            // cast shadow ray
+            shadowRay.origin.set(hit.position);
+            shadowRay.origin.fma(-1e-3f, ray.direction);
+            shadowRay.intensity = ray.intensity * 0.8f;
+            shadowRay.color.set(primitive.getColor()).mul(shadowRay.intensity);
+
+            shadowRay.direction.set(light.center).sub(hit.position).normalize();
+            final var shadowRayHitPrimitive = castRay(shadowRay, primitives);
+            color.fma(0.1f, shadowRay.color);
+            if (shadowRayHitPrimitive == light)
+                color.fma(shadowRay.color, light.getColor());
+
+
+            if (reflections > 0) {
+                // cast reflection ray
+                reflectionRay.origin.set(hit.position);
+                reflectionRay.origin.fma(-1e-3f, ray.direction);
+                reflectionRay.direction.set(ray.direction).reflect(hit.normal);
+                reflectionRay.intensity = ray.intensity * 0.2f;
+                ray = reflectionRay;
+                reflections--;
+            } else {
+                break;
+            }
+        }
+        return color;
+    }
+
+    public Primitive castRay(Ray ray, List<Primitive> primitives) {
+        for (Primitive primitive : primitives) {
+            if (primitive.hit(ray, hit4))
+                return primitive;
+        }
+        return null;
     }
 }
