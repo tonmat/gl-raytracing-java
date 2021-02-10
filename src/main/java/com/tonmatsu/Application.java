@@ -17,6 +17,8 @@ public class Application {
     private boolean viewportResized;
     private final Vector2f cursor = new Vector2f();
     private boolean cursorMoved;
+    private double[] deltaHistory = new double[60];
+    private int deltaHistoryIndex;
 
     public static void main(String[] args) {
         new Application().run();
@@ -76,6 +78,15 @@ public class Application {
             final var updateTime = glfwGetTime();
             final var delta = updateTime - lastUpdateTime;
             lastUpdateTime = updateTime;
+            deltaHistory[deltaHistoryIndex] = delta;
+            deltaHistoryIndex = ++deltaHistoryIndex % deltaHistory.length;
+            if (deltaHistoryIndex == 0) {
+                var deltaSum = 0.0;
+                for (double d : deltaHistory)
+                    deltaSum += d;
+                final var deltaAvg = deltaSum / deltaHistory.length;
+                glfwSetWindowTitle(window, String.format("%s  %5.1f FPS", title, 1.0 / deltaAvg));
+            }
 
             if (viewportResized) {
                 rt.viewportResized(viewport);
