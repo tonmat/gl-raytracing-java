@@ -13,6 +13,7 @@ import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL42.*;
+import static org.lwjgl.opengl.GL43.*;
 import static org.lwjgl.system.MemoryUtil.*;
 
 public class RT {
@@ -23,6 +24,7 @@ public class RT {
     private FloatBuffer pixels;
     private int texture;
     private int quadProgram;
+    private int rcProgram;
     private Vector3f cameraPosition;
     private Vector2f cameraRotation;
     private Matrix4f view;
@@ -48,6 +50,8 @@ public class RT {
         texture = createTexture();
 
         quadProgram = createQuadProgram();
+
+        rcProgram = createComputeProgram();
 
         cameraPosition = new Vector3f(0, 4, 2);
         cameraRotation = new Vector2f(0, 0);
@@ -109,6 +113,13 @@ public class RT {
         cameraPosition.fma(moveUp * delta * 4f, up);
 
         cameraRotation.set(cursor.y * 0.001f, cursor.x * 0.001f);
+
+        {
+            glUseProgram(rcProgram);
+            glDispatchCompute(viewport.x, viewport.y, 1);
+            glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+            glUseProgram(GL_NONE);
+        }
 
         view.invert();
         pixels.clear();
@@ -188,6 +199,23 @@ public class RT {
         glLinkProgram(program);
         glDeleteShader(vs);
         glDeleteShader(fs);
+        final var status = glGetProgrami(program, GL_LINK_STATUS);
+        if (status == GL_FALSE) {
+            System.err.printf(
+                    "could not link program!\n%s\n",
+                    glGetProgramInfoLog(program));
+            glDeleteProgram(program);
+            return 0;
+        }
+        return program;
+    }
+
+    private int createComputeProgram() {
+        final var program = glCreateProgram();
+        final var cs = createShader(GL_COMPUTE_SHADER, "shaders/rc.cs.glsl");
+        glAttachShader(program, cs);
+        glLinkProgram(program);
+        glDeleteShader(cs);
         final var status = glGetProgrami(program, GL_LINK_STATUS);
         if (status == GL_FALSE) {
             System.err.printf(
