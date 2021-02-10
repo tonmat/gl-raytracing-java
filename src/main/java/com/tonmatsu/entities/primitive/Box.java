@@ -3,8 +3,6 @@ package com.tonmatsu.entities.primitive;
 import com.tonmatsu.entities.*;
 import org.joml.*;
 
-import static org.joml.Math.*;
-
 public class Box implements Primitive {
     public final Vector3f center = new Vector3f();
     public final Vector3f size = new Vector3f();

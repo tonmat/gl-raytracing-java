@@ -8,8 +8,8 @@ import static org.joml.Math.*;
 public class Sphere implements Primitive {
     public final Vector3f center = new Vector3f();
     public final Vector3f color = new Vector3f();
-    public float radius;
     private final Vector3f tmp = new Vector3f();
+    public float radius;
 
     @Override
     public Vector3f getColor() {

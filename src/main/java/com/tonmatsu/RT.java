@@ -1,10 +1,10 @@
 package com.tonmatsu;
 
-import com.tonmatsu.entities.primitive.*;
 import com.tonmatsu.entities.*;
+import com.tonmatsu.entities.primitive.*;
 import com.tonmatsu.util.*;
-import org.joml.*;
 import org.joml.Math;
+import org.joml.*;
 
 import java.nio.*;
 import java.util.*;

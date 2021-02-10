@@ -3,10 +3,10 @@ package com.tonmatsu.util;
 import java.io.*;
 
 public final class AssetUtils {
+    private static final ClassLoader CL = AssetUtils.class.getClassLoader();
+
     private AssetUtils() {
     }
-
-    private static final ClassLoader CL = AssetUtils.class.getClassLoader();
 
     public static InputStream getStream(String name) {
         final var stream = CL.getResourceAsStream(name);

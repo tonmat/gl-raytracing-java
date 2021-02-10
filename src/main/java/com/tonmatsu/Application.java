@@ -9,14 +9,18 @@ import static org.lwjgl.system.MemoryUtil.*;
 
 public class Application {
     private long window;
-    private int width = 768;
-    private int height = 480;
-    private String title = "RT";
+    private final int width = 768;
+    private final int height = 480;
+    private final String title = "RT";
     private boolean running;
-    private Vector2i viewport = new Vector2i();
+    private final Vector2i viewport = new Vector2i();
     private boolean viewportResized;
-    private Vector2f cursor = new Vector2f();
+    private final Vector2f cursor = new Vector2f();
     private boolean cursorMoved;
+
+    public static void main(String[] args) {
+        new Application().run();
+    }
 
     public void run() {
         init();
@@ -103,9 +107,5 @@ public class Application {
     private void dispose() {
         glfwDestroyWindow(window);
         glfwTerminate();
-    }
-
-    public static void main(String[] args) {
-        new Application().run();
     }
 }
