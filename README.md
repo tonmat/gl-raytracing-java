@@ -1,0 +1,1 @@
+![alt text](https://raw.githubusercontent.com/tonmat/gl-raytracing-java/master/src/main/resources/images/ss.png?raw=true)
