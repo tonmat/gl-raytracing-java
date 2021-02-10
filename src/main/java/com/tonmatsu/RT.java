@@ -30,15 +30,8 @@ public class RT {
     private Vector3f up;
     private Vector3f right;
     private Ray ray;
-    private Ray shadowRay;
-    private Ray reflectionRay;
-    private Ray refractionRay;
     private ArrayList<Primitive> primitives;
     private Light light;
-    private Hit hit;
-    private Hit hit2;
-    private Hit hit3;
-    private Hit hit4;
     private float time;
 
     public void create(long window) {
@@ -63,9 +56,6 @@ public class RT {
         up = new Vector3f();
         right = new Vector3f();
         ray = new Ray();
-        shadowRay = new Ray();
-        reflectionRay = new Ray();
-        refractionRay = new Ray();
         primitives = new ArrayList<>();
         primitives.add(createSphere(-4, 4, 0, 2, 1.0f, 0.4f, 0.4f));
         primitives.add(createSphere(0, 5, 0, 1, 0.4f, 1.0f, 0.4f));
@@ -74,11 +64,6 @@ public class RT {
         primitives.add(createBox(0, 0, -4, 1, 1, 1, 0.6f, 0.5f, 0.1f));
         primitives.add(createBox(2, 2, 6, 4, 2, 2, 0.7f, 0.6f, 0.2f));
         primitives.add(light = createLight(0, 0, 0, 1, 1, 1));
-
-        hit = new Hit();
-        hit2 = new Hit();
-        hit3 = new Hit();
-        hit4 = new Hit();
 
         time = 0.0f;
     }
@@ -101,9 +86,9 @@ public class RT {
 
         glClear(GL_COLOR_BUFFER_BIT);
 
-        light.center.x = Math.sin(time * 0.9f) * 8.0f;
-        light.center.y = Math.cos(time * 0.1f) * 4.0f + 10.0f;
-        light.center.z = Math.cos(time * 4.0f) * 8.0f;
+        light.center.x = Math.sin(time * 0.7f) * 16.0f;
+        light.center.y = Math.cos(time * 0.03f) * 4.0f + 8.0f;
+        light.center.z = Math.cos(time * 1.1f) * 16.0f;
 
         view.positiveZ(forward).mul(-1);
         view.positiveY(up);
@@ -111,13 +96,17 @@ public class RT {
 
         var moveRight = 0.0f;
         var moveForward = 0.0f;
+        var moveUp = 0.0f;
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) moveRight--;
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) moveRight++;
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) moveForward--;
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) moveForward++;
+        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) moveUp--;
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) moveUp++;
 
         cameraPosition.fma(moveForward * delta * 4f, forward);
         cameraPosition.fma(moveRight * delta * 4f, right);
+        cameraPosition.fma(moveUp * delta * 4f, up);
 
         cameraRotation.set(cursor.y * 0.001f, cursor.x * 0.001f);
 
@@ -250,24 +239,16 @@ public class RT {
         glBindTexture(GL_TEXTURE_2D, GL_NONE);
     }
 
-    private Primitive getNearestHit(Ray ray) {
-        hit2.time = Float.POSITIVE_INFINITY;
-        hit2.color.set(0, 0, 0);
-        hit2.position.set(0, 0, 0);
-        hit2.normal.set(0, 0, 0);
-        Primitive primitive = null;
+    private Hit getNearestHit(Ray ray) {
+        Hit hit = null;
         for (final var p : primitives) {
-            if (p.hit(ray, hit3)) {
-                if (primitive == null || hit3.time < hit2.time) {
-                    hit2.time = hit3.time;
-                    hit2.color.set(hit3.color);
-                    hit2.position.set(hit3.position);
-                    hit2.normal.set(hit3.normal);
-                    primitive = p;
-                }
+            final var hit2 = p.hit(ray);
+            if (hit2 != null) {
+                if (hit == null || hit2.time < hit.time)
+                    hit = hit2;
             }
         }
-        return primitive;
+        return hit;
     }
 
     private Vector3f castRay(Ray ray, List<Primitive> primitives, Light light, int reflections) {
@@ -275,24 +256,26 @@ public class RT {
         final var color = new Vector3f();
         final var shadowRay = new Ray();
         final var reflectionRay = new Ray();
+        final var temp = new Vector3f();
         while (true) {
-            final var primitive = getNearestHit(ray);
-            if (primitive == null)
+            final var hit = getNearestHit(ray);
+            if (hit == null)
                 return color;
-            hit.set(hit2);
 
             // cast shadow ray
             shadowRay.origin.set(hit.position);
             shadowRay.origin.fma(-1e-3f, ray.direction);
-            shadowRay.intensity = ray.intensity * 0.8f;
-            shadowRay.color.set(primitive.getColor()).mul(shadowRay.intensity);
+            shadowRay.intensity = ray.intensity * 0.7f;
+            shadowRay.color.set(hit.primitive.getColor()).mul(shadowRay.intensity);
 
             shadowRay.direction.set(light.center).sub(hit.position).normalize();
-            final var shadowRayHitPrimitive = castRay(shadowRay, primitives);
+            final var shadowRayHit = castRay(shadowRay, primitives);
             color.fma(0.1f, shadowRay.color);
-            if (shadowRayHitPrimitive == light)
-                color.fma(shadowRay.color, light.getColor());
-
+            if (shadowRayHit.primitive == light) {
+                final var attenuation = 1.0f + 0.09f * shadowRayHit.time + 0.032f * shadowRayHit.time * shadowRayHit.time;
+                temp.set(shadowRay.color).mul(light.getColor());
+                color.fma(Math.min(8.0f / attenuation, 1.0f), temp);
+            }
 
             if (reflections > 0) {
                 // cast reflection ray
@@ -309,10 +292,11 @@ public class RT {
         return color;
     }
 
-    public Primitive castRay(Ray ray, List<Primitive> primitives) {
+    public Hit castRay(Ray ray, List<Primitive> primitives) {
         for (Primitive primitive : primitives) {
-            if (primitive.hit(ray, hit4))
-                return primitive;
+            final var hit = primitive.hit(ray);
+            if (hit != null)
+                return hit;
         }
         return null;
     }

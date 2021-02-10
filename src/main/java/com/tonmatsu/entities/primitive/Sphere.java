@@ -8,8 +8,9 @@ import static org.joml.Math.*;
 public class Sphere implements Primitive {
     public final Vector3f center = new Vector3f();
     public final Vector3f color = new Vector3f();
-    private final Vector3f tmp = new Vector3f();
     public float radius;
+    private final Vector3f tmp = new Vector3f();
+    private final Hit hit = new Hit();
 
     @Override
     public Vector3f getColor() {
@@ -17,12 +18,13 @@ public class Sphere implements Primitive {
     }
 
     @Override
-    public boolean hit(Ray ray, Hit hit) {
+    public Hit hit(Ray ray) {
         final var radius2 = radius * radius;
         center.sub(ray.origin, tmp);
         final var tca = tmp.dot(ray.direction);
         final var d2 = tmp.lengthSquared() - tca * tca;
-        if (d2 > radius2) return false;
+        if (d2 > radius2)
+            return null;
         final var thc = sqrt(radius2 - d2);
         var t0 = tca - thc;
         var t1 = tca + thc;
@@ -33,12 +35,13 @@ public class Sphere implements Primitive {
         }
         if (t0 < 0) {
             t0 = t1;
-            if (t0 < 0) return false;
+            if (t0 < 0)
+                return null;
         }
         hit.time = t0;
-        hit.color.set(color);
         hit.position.set(ray.origin).fma(t0, ray.direction);
         hit.normal.set(hit.position).sub(center).normalize();
-        return true;
+        hit.primitive = this;
+        return new Hit(hit);
     }
 }

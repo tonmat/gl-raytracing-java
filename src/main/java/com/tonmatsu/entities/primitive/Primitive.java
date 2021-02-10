@@ -6,5 +6,5 @@ import org.joml.*;
 public interface Primitive {
     Vector3f getColor();
 
-    boolean hit(Ray ray, Hit hit);
+    Hit hit(Ray ray);
 }

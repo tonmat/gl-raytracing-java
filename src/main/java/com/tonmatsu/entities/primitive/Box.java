@@ -9,6 +9,7 @@ public class Box implements Primitive {
     public final Vector3f color = new Vector3f();
     private final Vector3f invDir = new Vector3f();
     private final Vector3f sign = new Vector3f();
+    private final Hit hit = new Hit();
 
     @Override
     public Vector3f getColor() {
@@ -16,7 +17,7 @@ public class Box implements Primitive {
     }
 
     @Override
-    public boolean hit(Ray ray, Hit hit) {
+    public Hit hit(Ray ray) {
         invDir.set(1.0f).div(ray.direction);
         sign.x = invDir.x < 0 ? -1 : 1;
         sign.y = invDir.y < 0 ? -1 : 1;
@@ -28,7 +29,7 @@ public class Box implements Primitive {
         var tymax = (center.y + sign.y * size.y - ray.origin.y) * invDir.y;
 
         if (tmin > tymax || tymin > tmax)
-            return false;
+            return null;
         hit.normal.set(-sign.x, 0, 0);
         if (tymin > tmin) {
             tmin = tymin;
@@ -41,7 +42,7 @@ public class Box implements Primitive {
         var tzmax = (center.z + sign.z * size.z - ray.origin.z) * invDir.z;
 
         if (tmin > tzmax || tzmin > tmax)
-            return false;
+            return null;
         if (tzmin > tmin) {
             tmin = tzmin;
             hit.normal.set(0, 0, -sign.z);
@@ -53,12 +54,12 @@ public class Box implements Primitive {
         if (t < 0) {
             t = tmax;
             if (t < 0)
-                return false;
+                return null;
         }
 
         hit.time = t;
-        hit.color.set(color);
         hit.position.set(ray.origin).fma(t, ray.direction);
-        return true;
+        hit.primitive = this;
+        return new Hit(hit);
     }
 }
