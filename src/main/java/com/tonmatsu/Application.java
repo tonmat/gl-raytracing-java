@@ -9,8 +9,8 @@ import static org.lwjgl.system.MemoryUtil.*;
 
 public class Application {
     private long window;
-    private final int width = 768;
-    private final int height = 480;
+    private final int width = 1280;
+    private final int height = 720;
     private final String title = "RT";
     private boolean running;
     private final Vector2i viewport = new Vector2i();
@@ -35,6 +35,7 @@ public class Application {
             throw new RuntimeException("could not initialize glfw!");
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
         window = glfwCreateWindow(width, height, title, NULL, NULL);
         final var monitor = glfwGetPrimaryMonitor();
@@ -67,6 +68,7 @@ public class Application {
     private void threadLoop() {
         glfwMakeContextCurrent(window);
         GL.createCapabilities();
+        glfwSwapInterval(0);
         final var rt = new RT();
         rt.create(window);
         var lastUpdateTime = 0.0;

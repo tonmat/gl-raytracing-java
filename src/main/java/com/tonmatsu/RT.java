@@ -10,14 +10,19 @@ import java.nio.*;
 import java.util.*;
 
 import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.opengl.ARBComputeVariableGroupSize.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL42.*;
 import static org.lwjgl.opengl.GL43.*;
+import static org.lwjgl.system.MemoryStack.*;
 import static org.lwjgl.system.MemoryUtil.*;
 
 public class RT {
     private long window;
+    private Vector3i workGroupCount;
+    private Vector3i workGroupSize;
+    private int workGroupInvocations;
     private Vector2i viewport;
     private float viewportRatio;
     private Vector2f cursor;
@@ -25,6 +30,9 @@ public class RT {
     private int texture;
     private int quadProgram;
     private int rcProgram;
+    private int lightPositionUniformLocation;
+    private int lightColorUniformLocation;
+    private int viewUniformLocation;
     private Vector3f cameraPosition;
     private Vector2f cameraRotation;
     private Matrix4f view;
@@ -37,6 +45,21 @@ public class RT {
     private float time;
 
     public void create(long window) {
+        workGroupCount = new Vector3i();
+        workGroupCount.x = glGetIntegeri(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0);
+        workGroupCount.y = glGetIntegeri(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1);
+        workGroupCount.z = glGetIntegeri(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2);
+        System.out.printf("max global (total) work group counts x:%d y:%d z:%d\n", workGroupCount.x, workGroupCount.y, workGroupCount.z);
+
+        workGroupSize = new Vector3i();
+        workGroupSize.x = glGetIntegeri(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0);
+        workGroupSize.y = glGetIntegeri(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1);
+        workGroupSize.z = glGetIntegeri(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2);
+        System.out.printf("max local (in one shader) work group sizes x:%d y:%d z:%d\n", workGroupSize.x, workGroupSize.y, workGroupSize.z);
+
+        workGroupInvocations = glGetInteger(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS);
+        System.out.printf("max local work group invocations %d\n", workGroupInvocations);
+
         this.window = window;
         viewport = new Vector2i();
         cursor = new Vector2f();
@@ -52,6 +75,9 @@ public class RT {
         quadProgram = createQuadProgram();
 
         rcProgram = createComputeProgram();
+        lightPositionUniformLocation = glGetUniformLocation(rcProgram, "u_light.position");
+        lightColorUniformLocation = glGetUniformLocation(rcProgram, "u_light.color");
+        viewUniformLocation = glGetUniformLocation(rcProgram, "u_view");
 
         cameraPosition = new Vector3f(0, 4, 2);
         cameraRotation = new Vector2f(0, 0);
@@ -74,7 +100,7 @@ public class RT {
 
     public void viewportResized(Vector2i viewport) {
         glViewport(0, 0, viewport.x, viewport.y);
-        this.viewport.set(viewport).div(4);
+        this.viewport.set(viewport);
         memFree(pixels);
         pixels = memAllocFloat(viewport.x * viewport.y * 4);
         viewportRatio = (float) viewport.x / viewport.y;
@@ -94,7 +120,7 @@ public class RT {
         light.center.y = Math.cos(time * 0.03f) * 4.0f + 8.0f;
         light.center.z = Math.cos(time * 1.1f) * 16.0f;
 
-        view.positiveZ(forward).mul(-1);
+        view.positiveZ(forward);
         view.positiveY(up);
         view.positiveX(right);
 
@@ -114,37 +140,47 @@ public class RT {
 
         cameraRotation.set(cursor.y * 0.001f, cursor.x * 0.001f);
 
+        view.invert();
+
+//        pixels.clear();
+//        for (int y = 0; y < viewport.y; y++) {
+//            final var ay = ((float) y / viewport.y) - 0.5f;
+//            for (int x = 0; x < viewport.x; x++) {
+//                final var ax = (((float) x / viewport.x) - 0.5f) / viewportRatio;
+//                ray.origin.set(cameraPosition);
+//                ray.direction.set(ay, ax, 0).sub(0, 0, 0.5f);
+//                ray.direction.mulDirection(view);
+//                ray.direction.normalize();
+//
+//                final var color = castRay(ray, primitives, light, 4);
+//                pixels.put(color.x);
+//                pixels.put(color.y);
+//                pixels.put(color.z);
+//                pixels.put(1);
+//            }
+//        }
+//
+//        setTextureSubData(texture, pixels.flip());
+
         {
             glUseProgram(rcProgram);
-            glDispatchCompute(viewport.x, viewport.y, 1);
+            glUniform3f(lightPositionUniformLocation, light.center.x, light.center.y, light.center.z);
+            glUniform3f(lightColorUniformLocation, light.color.x, light.color.y, light.color.z);
+            try (final var stack = stackPush()) {
+                glUniformMatrix4fv(viewUniformLocation, false, view.get(stack.mallocFloat(16)));
+            }
+            final var g = 8;
+            glDispatchComputeGroupSizeARB(
+                    viewport.x / g, viewport.y / g, 1,
+                    g, g, 1);
             glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
             glUseProgram(GL_NONE);
         }
 
-        view.invert();
-        pixels.clear();
-        for (int y = 0; y < viewport.y; y++) {
-            final var ay = ((float) y / viewport.y) - 0.5f;
-            for (int x = 0; x < viewport.x; x++) {
-                final var ax = (((float) x / viewport.x) - 0.5f) / viewportRatio;
-                ray.origin.set(cameraPosition);
-                ray.direction.set(ay, ax, 0).sub(0, 0, 0.5f);
-                ray.direction.mulDirection(view);
-                ray.direction.normalize();
-
-                final var color = castRay(ray, primitives, light, 4);
-                pixels.put(color.x);
-                pixels.put(color.y);
-                pixels.put(color.z);
-                pixels.put(1);
-            }
-        }
-
-        setTextureSubData(texture, pixels.flip());
-
         view.identity()
-                .rotateX(cameraRotation.x)
-                .rotateY(cameraRotation.y);
+                .rotateX(-cameraRotation.x)
+                .rotateY(-cameraRotation.y)
+                .translate(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
 
         glUseProgram(quadProgram);
         glBindTexture(GL_TEXTURE_2D, texture);
@@ -251,6 +287,7 @@ public class RT {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, viewport.x, viewport.y);
+        glBindImageTexture(0, texture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA16F);
         glBindTexture(GL_TEXTURE_2D, GL_NONE);
         return texture;
     }
