@@ -196,7 +196,7 @@ vec3 cast_shadow_ray(Ray ray, Hit hit) {
 
 vec3 cast_primary_ray(Ray ray) {
     vec3 color = vec3(0.0);
-    int reflections = 4;
+    int reflections = 16;
     Ray shadow_ray;
     Ray reflection_ray;
     while (true) {
