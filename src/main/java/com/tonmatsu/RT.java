@@ -61,10 +61,10 @@ public class RT {
         vao = createVertexArray();
         ibo = createIndexBuffer(0, 1, 2, 2, 3, 0);
         vbo = createVertexBuffer(
-                -1, -1, 0, 1,
-                +1, -1, 1, 1,
-                +1, +1, 1, 0,
-                -1, +1, 0, 0);
+                -1, -1, 0, 0,
+                +1, -1, 1, 0,
+                +1, +1, 1, 1,
+                -1, +1, 0, 1);
         glBindVertexArray(GL_NONE);
         glBindBuffer(GL_ARRAY_BUFFER, GL_NONE);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_NONE);
@@ -148,8 +148,8 @@ public class RT {
         }
 
         view.identity()
-                .rotateX(-cameraRotation.x + 3.14159265358979323846f)
-                .rotateY(-cameraRotation.y + 3.14159265358979323846f)
+                .rotateX(cameraRotation.x)
+                .rotateY(cameraRotation.y)
                 .translate(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
 
         glUseProgram(quadProgram);
@@ -230,8 +230,8 @@ public class RT {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, viewport.x, viewport.y);
-        glBindImageTexture(0, texture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA16F);
+        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, viewport.x, viewport.y);
+        glBindImageTexture(0, texture, 0, false, 0, GL_WRITE_ONLY, GL_RGBA32F);
         glBindTexture(GL_TEXTURE_2D, GL_NONE);
         return texture;
     }
@@ -262,7 +262,7 @@ public class RT {
 
     private void resizeTexture(int texture) {
         glBindTexture(GL_TEXTURE_2D, texture);
-        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA16F, viewport.x, viewport.y);
+        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, viewport.x, viewport.y);
         glBindTexture(GL_TEXTURE_2D, GL_NONE);
     }
 }

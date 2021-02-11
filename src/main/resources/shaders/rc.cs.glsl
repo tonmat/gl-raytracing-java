@@ -8,7 +8,7 @@
 #define PRIMITIVES 7
 
 layout (local_size_variable) in;
-layout (rgba16f, binding = 0) uniform image2D img_output;
+layout (rgba32f, binding = 0) uniform image2D img_output;
 
 struct Primitive {
     int type;
@@ -51,8 +51,8 @@ Primitive(SPHERE, vec3(-4.0, 4.0, 2.0), vec3(2.0), vec3(0.5, 0.01, 0.01)),
 Primitive(SPHERE, vec3(0.0, 6.0, 0.0), vec3(1.0), vec3(0.01, 0.5, 0.01)),
 Primitive(SPHERE, vec3(4.0, 4.0, -2.0), vec3(2.0), vec3(0.01, 0.01, 0.5)),
 Primitive(BOX, vec3(0.0, -2.0, 0.0), vec3(100.0, 1.0, 100.0), vec3(1.0)),
-Primitive(BOX, vec3(-2.0, 2.0, -12.0), vec3(4.0, 2.0, 4.0), vec3(0.01, 0.01, 0.01)),
-Primitive(BOX, vec3(2.0, 2.0, 12.0), vec3(4.0, 2.0, 4.0), vec3(0.01, 0.01, 0.01))
+Primitive(BOX, vec3(-2.0, 2.0, -8.0), vec3(8.0, 4.0, 2.0), vec3(0.01, 0.01, 0.01)),
+Primitive(BOX, vec3(2.0, 2.0, 8.0), vec3(8.0, 4.0, 2.0), vec3(0.01, 0.01, 0.01))
 );
 
 Hit hit_box(Primitive box, Ray ray) {
@@ -196,7 +196,7 @@ vec3 cast_shadow_ray(Ray ray, Hit hit) {
 
 vec3 cast_primary_ray(Ray ray) {
     vec3 color = vec3(0.0);
-    int reflections = 16;
+    int reflections = 64;
     Ray shadow_ray;
     Ray reflection_ray;
     while (true) {
