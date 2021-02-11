@@ -233,7 +233,7 @@ void main() {
 
     Ray ray;
     ray.position = vec3(0.0, 0.0, 0.0);
-    ray.direction = normalize(vec3(y * ratio, x, 2.0));
+    ray.direction = normalize(vec3(x * ratio, y, -2.0));
     ray.intensity = 1.0;
     ray.color = vec3(0.0);
 
