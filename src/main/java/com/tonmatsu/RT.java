@@ -117,7 +117,7 @@ public class RT {
         glClear(GL_COLOR_BUFFER_BIT);
 
         light.center.x = Math.sin(time * 0.7f) * 16.0f;
-        light.center.y = Math.cos(time * 0.03f) * 4.0f + 8.0f;
+        light.center.y = Math.cos(time * 0.03f) * 4.0f + 12.0f;
         light.center.z = Math.cos(time * 1.1f) * 16.0f;
 
         view.positiveZ(forward);
